@@ -91,6 +91,7 @@ class HyperDatepicker extends Component<HyperDatepickerProps, HyperDatepickerSta
                 customInput={input}
                 selected={this.state.startDate}
                 onChange={this.handleDateSelectChange}
+                dateFormat="dd/MM/yyyy"
                 {...this.props}
             />
         );

@@ -30,14 +30,13 @@ import { useQuery } from '@apollo/react-hooks';
 
 import PageTitle from '../../components/PageTitle';
 
-import { uniqueId } from 'lodash/uniqueId';
 //#region LOCAL IMPORTS
 import { dateDDMMYYY } from '../../helpers/utils/format';
 import { numberWithCommas } from '../../helpers/utils/format';
 
 //#endregion
-// OrderTable
-const OrderTable = (mainProps) => {
+// BillTable
+const BillTable = (mainProps) => {
     const customTotal = (from, to, size) => (
         <label className="react-bootstrap-table-pagination-total ml-2">
             Showing {from} to {to} of {size}
@@ -302,9 +301,11 @@ function Bills() {
                         <CardBody>
                             <Row>
                                 <Col sm={4}>
-                                    <Button color="danger" className="mb-2">
-                                        <i className="mdi mdi-plus-circle mr-2" /> New Bill
-                                    </Button>
+                                    <Link to={`/bills/createbill`}>
+                                        <Button color="danger" className="mb-2">
+                                            <i className="mdi mdi-plus-circle mr-2" /> New Bill
+                                        </Button>
+                                    </Link>
                                 </Col>
 
                                 <Col sm={8}>
@@ -318,7 +319,7 @@ function Bills() {
                             {loading ? (
                                 <p>Loading</p>
                             ) : (
-                                <OrderTable data={bills} columns={columns} paginationOptions={paginationOptions} />
+                                <BillTable data={bills} columns={columns} paginationOptions={paginationOptions} />
                             )}
                         </CardBody>
                     </Card>

@@ -26,10 +26,12 @@ function Login(props) {
     const [loginUser, { loading }] = useMutation(LOGIN_USER_MUTATION, {
         update(_, { data: { login: userData } }) {
             context.login(userData);
+
             props.history.push('/');
         },
         onError(err) {
-            setErrors(err.graphQLErrors[0].extensions.errors);
+            //console.log(err.graphQLErrors[0]);
+            err && setErrors(err.graphQLErrors[0].extensions.errors);
         },
         variables: values,
     });

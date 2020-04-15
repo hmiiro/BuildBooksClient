@@ -190,7 +190,4 @@ class Topbar extends Component<TopbarProps> {
     }
 }
 
-export default connect(
-    null,
-    { showRightSidebar }
-)(Topbar);
+export default connect(null, { showRightSidebar })(Topbar);

@@ -9,11 +9,12 @@ function Logout(props) {
     const { logout } = useContext(AuthContext);
 
     useEffect(() => {
-        props.history.push('/account/login');
+        console.log(props);
         logout();
-    }, [logout]);
+        props.history.push('/account/login');
+    }, []);
 
-    return <React.Fragment></React.Fragment>;
+    return <React.Fragment>Logged out</React.Fragment>;
 }
 
 export default Logout;
