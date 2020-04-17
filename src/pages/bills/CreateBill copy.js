@@ -1,224 +1,313 @@
-import React, { useState, Fragment, useContext } from 'react';
-import { Row, Col, Card, CardBody, Alert } from 'reactstrap';
-import { useMutation } from '@apollo/react-hooks';
-import moment from 'moment';
+import React, { useState } from 'react';
+import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+import { Button, Card, CardBody, Input, Table, Row, Col } from 'reactstrap';
+import DatePicker from 'react-datepicker';
 
-import { numberWithCommas, dateDDMMYYY } from '../../helpers/utils/format';
-import { statusColors } from '../../helpers/utils/status';
-import { ADD_BILL_MUTATION } from '../../helpers/utils/graphql';
-import LoadingSpinner from '../../helpers/utils/LoadingSpinner';
+import { isIterableArray } from '../../helpers/utils/format';
 import PageTitle from '../../components/PageTitle';
-import logoImg from '../../assets/images/logo-light.png';
-import { useForm } from '../../helpers/utils/hooks';
-import LineItems from './LineItems';
+import { numberWithCommas } from '../../helpers/utils/format';
 
+//#region Item Row
+const ItemRow = ({ id, name, desc, rate, qty, handleChange, handleRemove, handleFocus }) => (
+    <tr>
+        <td>{id + 1}</td>
+        <td>
+            <Input
+                bsSize="sm"
+                required
+                value={name}
+                placeholder="Enter item name"
+                onChange={({ target }) => handleChange(id, 'name', target.value)}
+                onFocus={handleFocus}
+            />
+        </td>
+
+        <td>
+            <Input bsSize="sm" value={desc} onChange={({ target }) => handleChange(id, 'desc', target.value)} />
+        </td>
+        <td>
+            <Input
+                bsSize="sm"
+                required
+                value={qty}
+                onFocus={handleFocus}
+                onChange={({ target }) => handleChange(id, 'qty', target.value)}
+            />
+        </td>
+        <td>
+            <Input
+                bsSize="sm"
+                required
+                onFocus={handleFocus}
+                value={numberWithCommas(rate)}
+                onChange={({ target }) => handleChange(id, 'rate', target.value)}
+            />
+        </td>
+        <td>{numberWithCommas(qty * rate)}</td>
+        {/* <td className="text-center align-middle">
+            <CustomInput
+                type="radio"
+                id={`itemPrice${id}`}
+                name="itemPriceRadio"
+                checked={checked}
+                onChange={({ target }) => handleChange(id, 'checked', target.checked)}
+            />
+        </td> */}
+        <td className="text-center align-middle">
+            <Button color="danger" size="sm" onClick={() => handleRemove(id)}>
+                x
+            </Button>
+        </td>
+    </tr>
+);
+//#endregion
+
+//#region Bill Header
+const BillHeader = ({
+    suppliers,
+    totAmt,
+    totPaid,
+    totBal,
+    startDate,
+    handleDate,
+    handleItemChange,
+    handleCreateItem,
+    selectedOption,
+    isLoading,
+}) => {
+    return (
+        <Card>
+            <CardBody>
+                <h4 className="header-title text-info">Bill Details:</h4>
+                <hr className="header-title text-info" />
+                <Row>
+                    <Col sm={3}>
+                        <h5>Bill Date:</h5>
+                        <DatePicker
+                            selected={startDate}
+                            onChange={handleDate}
+                            className="form-control date"
+                            id="dash-daterange"
+                            dateFormat="dd/MM/yyyy"
+                        />
+                        <br />
+                        <h5>Order Date:</h5>
+                        <DatePicker
+                            selected={startDate}
+                            onChange={handleDate}
+                            className="form-control date"
+                            id="dash-daterange"
+                            dateFormat="dd/MM/yyyy"
+                        />
+                    </Col>
+                    <Col sm={3}>
+                        <h5>Supplier Details:</h5>
+                        <CreatableSelect
+                            isClearable={true}
+                            isDisabled={isLoading}
+                            isLoading={isLoading}
+                            onChange={handleItemChange}
+                            onCreateOption={handleCreateItem}
+                            options={suppliers}
+                            value={selectedOption}
+                            required={true}
+                        />
+
+                        <br />
+                        <h5>Payment Terms:</h5>
+                        <Select
+                            className="react-select"
+                            classNamePrefix="react-select"
+                            options={[
+                                { value: 'cash', label: 'Cash On Delivery' },
+                                { value: '7Days', label: '7 Days' },
+                                { value: '14Days', label: '14 Days' },
+                                { value: '30Days', label: '30 Days' },
+                            ]}></Select>
+                    </Col>
+                    <Col sm={3}></Col>
+
+                    <Col sm={3}>
+                        <div className="mt-3 float-sm-right">
+                            <h5 className="header-title text-info">Bill Summary:</h5>
+                            <div className="table-responsive">
+                                <Table size="sm" bordered striped>
+                                    <tbody>
+                                        <tr>
+                                            <th className="text-sm-right">Total:</th>
+                                            <td>{numberWithCommas(totAmt)}</td>
+                                        </tr>
+                                        <tr>
+                                            <th className="text-sm-right">Paid:</th>
+                                            <td>{numberWithCommas(totPaid)}</td>
+                                        </tr>
+                                        <tr>
+                                            <th className="text-sm-right text-danger">Bal:</th>
+                                            <td className="text-danger">{numberWithCommas(totBal)}</td>
+                                        </tr>
+                                    </tbody>
+                                </Table>
+                            </div>
+                        </div>
+                    </Col>
+                </Row>
+            </CardBody>
+        </Card>
+    );
+};
+//#endregion
+
+//#region Main Component
 const CreateBill = (props) => {
-    //#region LS
-    // const { onChange, onSubmit, values } = useForm(creatingABill, {
-    //     createdAt: moment(),
-    //     supplier: '',
-    //     billItems: [],
-    //     totItems: 0,
-    //     totAmt: 0,
-    //     totPaid: 0,
-    //     totBal: 0,
-    // });
-
-    //const { createdAt, supplier, totItems, totAmt, totPaid, totBal, billItems } = values;
-    const [errors, setErrors] = useState([]);
-    const [billItems, setBillItems] = useState([{ name: '', desc: '', qty: 1, rate: 0 }]);
-    const [createdAt, setCreatedAt] = useState(moment());
-    const [supplier, setSupplier] = useState('');
-    const [totItems, setTotItems] = useState(0);
-    const [totAmt, setTotAmt] = useState(0);
+    // Data and State
+    const [startDate, setStartDate] = useState(new Date());
+    const [items, setItems] = useState([{ name: '', desc: '', qty: 1, rate: 0 }]);
     const [totPaid, setTotPaid] = useState(0);
-    const [totBal, setTotBal] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedOption, setSelectedOption] = useState(undefined);
+    const [suppliers, setSuppliers] = useState([{ label: 'General', value: 'General' }]);
+    const [notes, setNotes] = useState('All accounts are to be paid within 30 days from recording of bill.');
 
-    //#region CL handlers and api hooks
-
-    const [createBill, { loading }] = useMutation(ADD_BILL_MUTATION, {
-        update(_, { data: { createBill: addedBill } }) {
-            //context.login(addedBill);
-            //props.history.push(`/bills/:${addedBill.billNo}`);
-            console.log(addedBill);
-        },
-        onError(err) {
-            setErrors([...errors], err.graphQLErrors[0].extensions.errors);
-        },
-        variables: { createdAt, supplier, totItems, totAmt, totPaid, totBal, billItems },
-    });
-
-    // function creatingABill() {
-    //     createBill();
-    // }
-    //#endregion
-
-    // handling functions
-    //this handles invoice date changes.
-    const onDateChange = (createdAt) => {
-        // making sure the user doesnt clear the date with delete key
-        if (createdAt) {
-            setCreatedAt(() => ({ createdAt }));
-        }
+    const calcLineItemsTotal = () => {
+        return items.reduce((prev, cur) => prev + cur.qty * cur.rate, 0);
     };
-    //this handles date focus.
-    const onFocusChange = ({ focused }) => {
-        setCreatedAt(() => ({ calenderFocused: focused }));
-    };
-    const onSupplierChange = (e) => {
-        const supplier = e.target.value;
-        setSupplier(() => ({ supplier }));
+    const totAmt = calcLineItemsTotal();
+    const totBal = totAmt - totPaid;
+    // Change Item
+    const changeItem = (id, name, value) => {
+        const updatedItems = name === 'checked' ? items.map((item) => ({ ...item, checked: false })) : [...items];
+        const updatedItem = { ...items[id], [name]: value };
+
+        setItems([...updatedItems.slice(0, id), updatedItem, ...updatedItems.slice(id + 1)]);
     };
 
-    const handleLineItemChange = (elementIndex) => (e) => {
-        console.log(elementIndex);
-        console.log(e);
-        let lineItems = billItems.map((item, i) => {
-            if (elementIndex !== i) return item;
+    // Remove Item
+    const removeItem = (id) => setItems([...items.slice(0, id), ...items.slice(id + 1)]);
 
-            const target = e.target;
-            const value = target.type === 'change' ? target.selected : target.value;
-            const name = target.name;
-
-            return { ...item, [name]: value };
-        });
-        setBillItems({ lineItems });
-    };
-
-    const handleAddLineItem = (e) => {
-        setBillItems([...billItems, { name: '', desc: '', qty: 1, rate: 0 }]);
-    };
-
-    const handleRemoveLineItem = (elementIndex) => (e) => {
-        setBillItems({
-            billItems: billItems.filter((item, i) => {
-                return elementIndex !== i;
-            }),
-        });
-    };
-
-    const handleFocusSelect = (e) => {
+    // focus on select
+    const handleFocus = (e) => {
         e.target.select();
     };
-
-    // Remove Item from list
-    const removeItem = (itemCode) => setBillItems([...billItems.slice(0, itemCode), ...billItems.slice(itemCode + 1)]);
-    const calcLineItemsTotal = () => {
-        return billItems.reduce((prev, cur) => prev + cur.qty * cur.rate, 0);
+    //#region Bill Options handlers
+    const handleDate = (date) => {
+        setStartDate(date);
     };
-    const handleSaveBill = (e) => {
-        e.preventDefault();
-
-        if (billItems.length <= 0 || calcLineItemsTotal() === 0) {
-            // set error value
-            setErrors([...errors], {
-                error: 'Please add some items to the invoice!',
-            });
-        } else {
-            // clear error value and set all summary amounts
-            setErrors([{}]);
-            setTotItems(billItems.length);
-            setTotAmt(calcLineItemsTotal());
-            setTotBal(totAmt - totPaid);
-        }
-        createBill();
+    const createOption = (label) => ({
+        label,
+        value: label.replace(/\W/g, ''),
+    });
+    const handleItemChange = (newValue, actionMeta) => {
+        console.group('Value Changed');
+        console.log(newValue);
+        console.log(`action: ${actionMeta.action}`);
+        console.groupEnd();
+        setSelectedOption(newValue);
     };
+    const handleCreateItem = (inputValue) => {
+        setIsLoading(true);
+        console.group('Option created');
+        console.log('Wait a moment...');
+        setTimeout(() => {
+            console.log(suppliers);
+            const newOption = createOption(inputValue);
+            console.log(newOption);
+            console.groupEnd();
+            setSuppliers([newOption, ...suppliers]);
+            setIsLoading(false);
+            setSelectedOption(newOption);
+        }, 1000);
+        console.log(suppliers);
+    };
+    //#endregion
     return (
-        <Fragment>
+        <React.Fragment>
             <PageTitle
                 breadCrumbItems={[
                     { label: 'Bills', path: `/bills` },
                     { label: 'Create Bill', active: true },
                 ]}
-                title={'Bill'}
+                title={'New Bill'}
             />
-            {errors.length > 0 && (
-                <Alert color="danger" isOpen={errors ? true : false}>
-                    <div>
-                        <ul>
-                            {errors.map((error) => Object.values(error).map((value) => <li key={value}>{value}</li>))}
-                        </ul>
-                    </div>
-                </Alert>
-            )}
+            <BillHeader
+                suppliers={suppliers}
+                isLoading={isLoading}
+                handleItemChange={handleItemChange}
+                handleCreateItem={handleCreateItem}
+                selectedOption={selectedOption}
+                totAmt={totAmt}
+                totPaid={totPaid}
+                totBal={totBal}
+                startDate={startDate}
+                handleDate={handleDate}
+            />
+            <Card className="mb-3">
+                <CardBody>
+                    <h4 className="header-title text-info">Item Details:</h4>
+                    <Table bordered className="mb-0" responsive>
+                        <thead>
+                            <tr className="thead-light">
+                                <th>#</th>
+                                <th>Item Name</th>
+                                <th>Desc</th>
+                                <th>Qty</th>
+                                <th>Rate</th>
+                                <th className="text-right">Amount</th>
+                                <th />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {isIterableArray(items) &&
+                                items.map((item, index) => (
+                                    <ItemRow
+                                        {...item}
+                                        id={index}
+                                        handleChange={changeItem}
+                                        handleRemove={removeItem}
+                                        handleFocus={handleFocus}
+                                        key={index}
+                                    />
+                                ))}
+                        </tbody>
+                    </Table>
+                    <Button
+                        color="success"
+                        size="sm"
+                        onClick={() => setItems([...items, { name: '', desc: '', qty: 1, rate: 0 }])}>
+                        Add New
+                    </Button>
+                </CardBody>
+            </Card>
             <Row>
-                <Col>
-                    <Card>
-                        <CardBody>
-                            <div className="clearfix">
-                                <div className="float-left mb-3">
-                                    <img src={logoImg} alt="logo" height="18" />
-                                </div>
-                                <div className="float-right">
-                                    <h4 className="m-0 d-print-none">Supplier Bill</h4>
-                                </div>
-                            </div>
-
-                            <Row>
-                                <Col>
-                                    <div className="table-responsive">
-                                        <LineItems
-                                            billItems={billItems}
-                                            handleAdd={handleAddLineItem}
-                                            handleChange={handleLineItemChange}
-                                            handleFocus={handleFocusSelect}
-                                            handleRemove={handleRemoveLineItem}
-                                        />
-                                    </div>
-                                </Col>
-                            </Row>
-
-                            <Row>
-                                <Col sm={6}>
-                                    <div className="clearfix pt-3">
-                                        <h6 className="text-muted">Notes:</h6>
-                                        <small>
-                                            All accounts are to be paid within 7 days from receipt of invoice. To be
-                                            paid by cheque or credit card or direct payment online. If account is not
-                                            paid within 7 days the credits details supplied as confirmation of work
-                                            undertaken will be charged the agreed quoted fee noted above.
-                                        </small>
-                                    </div>
-                                </Col>
-                                <Col sm={6}>
-                                    <div className="float-right mt-3 mt-sm-0">
-                                        <p>
-                                            <b>Total Amount:</b> <span className="float-right">{totAmt}</span>
-                                        </p>
-                                        <p>
-                                            <b>Amount Paid:</b> <span className="float-right">`({totPaid})`</span>
-                                        </p>
-                                        <h5>
-                                            Amount Due:<span className="float-right">{totBal}</span>
-                                        </h5>
-                                    </div>
-                                    <div className="clearfix"></div>
-                                </Col>
-                            </Row>
-
-                            <div className="d-print-none mt-4">
-                                <div className="text-left">
-                                    <button className="btn btn-success" onClick={handleSaveBill}>
-                                        <i className="mdi mdi-printer"></i> Save
-                                    </button>
-                                </div>
-                                <div className="text-right">
-                                    <button
-                                        disabled
-                                        className="btn btn-primary"
-                                        onClick={(e) => {
-                                            window.print();
-                                        }}>
-                                        <i className="mdi mdi-printer"></i> Print
-                                    </button>
-                                </div>
-                            </div>
-                        </CardBody>
-                    </Card>
+                <Col sm={6}>
+                    <div className="clearfix pt-3">
+                        <h6 className="text-muted">Notes:</h6>
+                        <Input
+                            type="textarea"
+                            name="text"
+                            value={notes}
+                            onChange={({ target }) => setNotes(target.value)}
+                            rows="3"
+                        />
+                    </div>
+                </Col>
+                <Col sm={6}>
+                    <div className="float-right mt-3 mt-sm-0">
+                        <p>
+                            <b>Total Amount:</b> <span className="float-right">{numberWithCommas(totAmt)}</span>
+                        </p>
+                        <p>
+                            <b>Amount Paid:</b> <span className="float-right">{numberWithCommas(totPaid)}</span>
+                        </p>
+                        <h5 className="text-danger">
+                            Amount Due:<span className="float-right">{numberWithCommas(totBal)}</span>
+                        </h5>
+                    </div>
+                    <div className="clearfix"></div>
                 </Col>
             </Row>
-        </Fragment>
+        </React.Fragment>
     );
 };
-
+//#endregion
 export default CreateBill;

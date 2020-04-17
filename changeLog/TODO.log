@@ -1,0 +1,39 @@
+TODO:
+
+Change Backend Server to accept Create Bill changes
+
+A. Implement TransDT on all Docs
+************:::::::::::*******************
+
+B. Implement Suppliers List
+	1. Implement Add Items
+	2. Get Items
+	3. Implement Delete Supplier
+************:::::::::::*******************
+
+C. Implement Items List
+	1. Implement Add Items
+	2. Get Items
+	3. Implement Delete Item
+
+************:::::::::::*******************
+D. Implement Update on All Models
+	1. Implement Update Item
+	2. Implement Update Supplier
+	3. Implement Update Bill
+
+************:::::::::::*******************
+E. Implement Banks Module
+	1. Implement Add Bank Account
+	2. Implement Update Bank Account
+	3. Implement Delete Bank Account
+
+************:::::::::::*******************
+E. Implement Payments Module
+	1. Implement Add Bill Payment
+	2. Implement Update Payment
+	3. Implement Delete Payment
+
+
+
+    
