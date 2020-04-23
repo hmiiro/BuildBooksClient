@@ -7,10 +7,10 @@ import { useMutation, useQuery } from '@apollo/react-hooks';
 
 import { isIterableArray } from '../../helpers/utils/format';
 import PageTitle from '../../components/PageTitle';
-import { numberWithCommas } from '../../helpers/utils/format';
+import { numberWithCommas, dateDDMMYYY } from '../../helpers/utils/format';
 import LoaderWidget from '../../components/Loader';
 
-import { FETCH_ITEMS_QUERY } from '../../helpers/utils/graphql';
+import { FETCH_ITEMS_QUERY, ADD_ITEM_MUTATION, CREATE_BILL_MUTATION } from '../../helpers/utils/graphql';
 
 //#region Item Row
 const ItemRow = ({
@@ -86,7 +86,7 @@ const BillHeader = ({
     handleDate,
     handleSupplierChange,
     handleCreateSupplier,
-    selectedOption,
+    selectedSupplier,
     isLoading,
 }) => {
     return (
@@ -123,7 +123,7 @@ const BillHeader = ({
                             onChange={handleSupplierChange}
                             onCreateOption={handleCreateSupplier}
                             options={suppliers}
-                            value={selectedOption}
+                            value={selectedSupplier}
                             required={true}
                         />
 
@@ -173,24 +173,36 @@ const BillHeader = ({
 
 //#region Main Component
 const CreateBill = (props) => {
-    //#region DATA FETCHING AND CREATING
-    const { loading, data } = useQuery(FETCH_ITEMS_QUERY);
-
-    const RecievedItems = data && data.getItems;
-
-    //#endregion
-
     // Data and State
     const [startDate, setStartDate] = useState(new Date());
     const [billItems, setBillItems] = useState([]);
     const [totPaid, setTotPaid] = useState(0);
     const [notes, setNotes] = useState('All accounts are to be paid within 30 days from recording of bill.');
     const [isLoading, setIsLoading] = useState(false);
-    const [items, setItems] = useState([{ label: 'General', value: 'General' }]);
-    const [selectedItem, setSelectedItem] = useState(undefined);
+
     const [suppliers, setSuppliers] = useState([{ label: 'General', value: 'General' }]);
-    const [selectedOption, setSelectedOption] = useState(undefined);
+    const [selectedSupplier, setSelectedSupplier] = useState({ label: 'General', value: 'General' });
     const [errors, setErrors] = useState({});
+    const [items, setItems] = useState([{ label: 'General', value: 'General' }]);
+
+    //#region DATA FETCHING AND CREATING
+    const { loading, data } = useQuery(FETCH_ITEMS_QUERY);
+
+    const recievedItems = data && data.getItems;
+
+    const loadItems = () => {
+        recievedItems && setItems([...recievedItems, ...items]);
+    };
+
+    useEffect(() => {
+        loadItems();
+    }, [!loading]);
+
+    const [addItem] = useMutation(ADD_ITEM_MUTATION);
+
+    const [createBill] = useMutation(CREATE_BILL_MUTATION);
+
+    //#endregion
 
     const calcLineItemsTotal = () => {
         return billItems.reduce((prev, cur) => prev + cur.qty * cur.rate, 0);
@@ -217,50 +229,61 @@ const CreateBill = (props) => {
     const handleDate = (date) => {
         setStartDate(date);
     };
-    const createOption = (label) => ({
-        label,
-        value: label.replace(/\W/g, ''),
-    });
-    const handleSupplierChange = (newValue, actionMeta) => {
-        console.group('Value Changed');
-        console.log(newValue);
-        console.log(`action: ${actionMeta.action}`);
-        console.groupEnd();
-        setSelectedOption(newValue);
+    function createOption(label) {
+        return {
+            label,
+            value: label.replace(/\W/g, ''),
+        };
+    }
+    const handleSupplierChange = (newValue) => {
+        //console.log(newValue.value);
+        setSelectedSupplier(newValue);
     };
     const handleCreateSupplier = (inputValue) => {
         setIsLoading(true);
-        console.group('Option created');
-        console.log('Wait a moment...');
         setTimeout(() => {
-            console.log(suppliers);
             const newOption = createOption(inputValue);
-            console.log(newOption);
-            console.groupEnd();
             setSuppliers([newOption, ...suppliers]);
             setIsLoading(false);
-            setSelectedOption(newOption);
         }, 1000);
-        console.log(suppliers);
     };
 
-    const handleItemChange = (newValue) => {
-        setSelectedItem(newValue);
-    };
-    const handleCreateItem = (inputValue) => {
+    function handleCreateItem(inputValue) {
         setIsLoading(true);
-        console.group('Item created');
-        console.log('Wait a moment...');
-        setTimeout(() => {
-            console.log(suppliers);
-            const newOption = createOption(inputValue);
-            console.log(newOption);
-            console.groupEnd();
-            setItems([newOption, ...items]);
-            setIsLoading(false);
-            setSelectedItem(newOption);
-        }, 1000);
-        console.log(items);
+        const newItem = {
+            name: inputValue,
+            label: inputValue,
+            value: inputValue,
+        };
+        setItems([newItem, ...items]);
+        addItem({
+            variables: {
+                name: newItem.name,
+            },
+        });
+        setIsLoading(false);
+    }
+    const handleSaveBill = () => {
+        billItems.map(
+            (item) => (
+                (item.itemCode = item.name.itemCode),
+                (item.name = item.name.name),
+                (item.qty = parseInt(item.qty)),
+                (item.rate = parseInt(item.rate))
+            )
+        );
+
+        createBill({
+            variables: {
+                transDt: dateDDMMYYY(startDate),
+                supplier: selectedSupplier.value,
+                totItems: billItems.length,
+                totAmt,
+                totPaid,
+                totBal,
+                billItems,
+            },
+        });
     };
     //#endregion
     return (
@@ -277,7 +300,7 @@ const CreateBill = (props) => {
                 isLoading={isLoading}
                 handleSupplierChange={handleSupplierChange}
                 handleCreateSupplier={handleCreateSupplier}
-                selectedOption={selectedOption}
+                selectedSupplier={selectedSupplier}
                 totAmt={totAmt}
                 totPaid={totPaid}
                 totBal={totBal}
@@ -323,9 +346,7 @@ const CreateBill = (props) => {
                                     handleRemove={removeItem}
                                     handleFocus={handleFocus}
                                     isLoading={isLoading}
-                                    handleItemChange={handleItemChange}
                                     handleCreateItem={handleCreateItem}
-                                    selectedItem={selectedItem}
                                     items={items}
                                     key={index}
                                 />
@@ -337,10 +358,7 @@ const CreateBill = (props) => {
                     <Button
                         color="success"
                         size="sm"
-                        onClick={
-                            (console.log(billItems),
-                            () => setBillItems([...billItems, { name: '', desc: '', qty: 1, rate: 0 }]))
-                        }>
+                        onClick={() => setBillItems([...billItems, { name: '', desc: '', qty: 1, rate: 0 }])}>
                         Add New
                     </Button>
                 </CardBody>
@@ -373,6 +391,13 @@ const CreateBill = (props) => {
                     <div className="clearfix"></div>
                 </Col>
             </Row>
+            <div className="d-print-none mt-4">
+                <div className="text-right">
+                    <button className="btn btn-primary" onClick={(event) => handleSaveBill()}>
+                        <i className="mdi mdi-printer"></i> Save
+                    </button>
+                </div>
+            </div>
         </React.Fragment>
     );
 };

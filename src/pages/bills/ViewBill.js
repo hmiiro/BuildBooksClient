@@ -37,14 +37,14 @@ const ViewBill = (props) => {
     };
 
     const id = props.match.params.id;
-    console.log(id);
+
     const { loading, data } = useQuery(FETCH_SINGLEBILL_QUERY, {
         variables: {
             id,
         },
     });
-    console.log(data);
-    const { billNo, createdAt, totItems, totAmt, totPaid, totBal, status, supplier, billItems } =
+
+    const { billNo, transDt, totItems, totAmt, totPaid, totBal, status, supplier, billItems } =
         !loading && data.getBill;
     return (
         <Fragment>
@@ -83,18 +83,17 @@ const ViewBill = (props) => {
 
                                     <Col sm={6}>
                                         <div className="mt-3 float-sm-right">
-                                            <p className="font-13">
-                                                <strong>Order Date: </strong> &nbsp;&nbsp;&nbsp; {billdata.order_date}
+                                            <p>
+                                                <strong>Bill No: </strong> <span className="float-right">{billNo}</span>
                                             </p>
-                                            <p className="font-13">
-                                                <strong>Order Status: </strong>{' '}
+                                            <p>
+                                                <strong>Bill Date: </strong> &nbsp;&nbsp;&nbsp; {transDt}
+                                            </p>
+                                            <p>
+                                                <strong>Bill Status: </strong>{' '}
                                                 <span className="badge badge-success float-right">
                                                     {billdata.order_status}
                                                 </span>
-                                            </p>
-                                            <p className="font-13">
-                                                <strong>Order ID: </strong>{' '}
-                                                <span className="float-right">#{billdata.order_id}</span>
                                             </p>
                                         </div>
                                     </Col>
@@ -153,12 +152,14 @@ const ViewBill = (props) => {
                                                             <tr key={item.itemCode}>
                                                                 <td>{idx + 1}</td>
                                                                 <td>
-                                                                    <b>{item.desc}</b> <br />
+                                                                    <b>{item.name}</b> <br />
                                                                     {item.desc}
                                                                 </td>
                                                                 <td>{item.qty}</td>
-                                                                <td>{item.rate}</td>
-                                                                <td className="text-right">{item.qty * item.rate}</td>
+                                                                <td>{numberWithCommas(item.rate)}</td>
+                                                                <td className="text-right">
+                                                                    {numberWithCommas(item.qty * item.rate)}
+                                                                </td>
                                                             </tr>
                                                         );
                                                     })}
@@ -183,14 +184,17 @@ const ViewBill = (props) => {
                                     <Col sm={6}>
                                         <div className="float-right mt-3 mt-sm-0">
                                             <p>
-                                                <b>Total Amount:</b> <span className="float-right">{totAmt}</span>
+                                                <b>Total Amount:</b>{' '}
+                                                <span className="float-right">{numberWithCommas(totAmt)}</span>
                                             </p>
                                             <p>
-                                                <b>Amount Paid:</b> <span className="float-right">`({totPaid})`</span>
+                                                <b>Amount Paid:</b>{' '}
+                                                <span className="float-right">{numberWithCommas(totPaid)}</span>
                                             </p>
-                                            <h3>
-                                                Amount Due:<span className="float-right">{totBal}</span>
-                                            </h3>
+                                            <h5 className="text-danger">
+                                                Amount Due:
+                                                <span className="float-right">{numberWithCommas(totBal)}</span>
+                                            </h5>
                                         </div>
                                         <div className="clearfix"></div>
                                     </Col>

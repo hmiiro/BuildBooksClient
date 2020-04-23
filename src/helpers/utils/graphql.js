@@ -19,6 +19,7 @@ export const FETCH_SINGLEBILL_QUERY = gql`
     query($id: String!) {
         getBill(billNo: $id) {
             createdAt
+            transDt
             billNo
             totItems
             totAmt
@@ -28,6 +29,7 @@ export const FETCH_SINGLEBILL_QUERY = gql`
             user
             billItems {
                 itemCode
+                name
                 desc
                 qty
                 rate
@@ -42,22 +44,22 @@ export const FETCH_ITEMS_QUERY = gql`
             itemCode
             name
             desc
-            rate
+            label
+            value
         }
     }
 `;
 
 export const ADD_ITEM_MUTATION = gql`
-    mutation createItem($name: String!, $desc: String, $qty: Int!, $rate: Int!) {
-        createItem(input: { name: $name, desc: $desc, qty: $qty, rate: $rate }) {
+    mutation createItem($name: String!, $desc: String) {
+        createItem(input: { name: $name, desc: $desc }) {
             itemCode
             name
-            rate
         }
     }
 `;
 
-export const ADD_BILL_MUTATION = gql`
+export const CREATE_BILL_MUTATION = gql`
     mutation createBill(
         $transDt: String!
         $supplier: String!
